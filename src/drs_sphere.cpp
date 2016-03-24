@@ -60,9 +60,37 @@ using namespace std;
 
 /*------------------------------------------------------------------*/
 
-int main(int argc, char* argv[]){
+int main()
+{
+    
+    config_param par;
+    
+    bool chanToPlot[128];
+    
+    int currentChannel = 0;
+    int ch;
+    int i;
+    int j;
+    int nBoards;
+    
+    struct myEvent ev;
+    
+    char branchDef[130];
+    char rootFileName[130];
+    
+    DRS *drs;
+    DRSBoard *b;
+    
+    
+    if((fp = fopen("config.txt","r+")) == NULL)
+    {
+        perror("ERROR: Cannot open file \"config.txt\"");
+        return 1;
+    }
+
+    fscanf(fp,"%d %s %d %f %B %d",&(par.nEvents), par.filename, &(par.delayNs), &(par.treshMV), &(par.triggerEdge), &(par.channel));
     //cout << "no. of arguments: " << argc << endl;
-    if (argc !=8) {
+   /* if (argc !=8) {
         cout << argv[0] << ": Usage"<< endl;
         cout << argv[0] << " filename nchans" << endl;
         cout << "          nEvents  : Number of events Read Out " << endl;
@@ -74,54 +102,41 @@ int main(int argc, char* argv[]){
         cout << " Example: drs_sub pippo 1000 0 100 25.0 pos 0" << endl;
         return 0;
     }
+    */
+    fclose(fp);
+
+    /*Tutto sto bordello per scegliere una canale da seguire. Mette nell'array di booleani chanToPlot quello che si stà usando a TRUE, gli altri tutti FALSE */
+    /*BISOGNA RIVEDERE LA PERVERSIONE QUI IN ATTO*/
+
+    for (i=0; i<MAXCH; i++)
+    {
+    chanToPlot[i]=false;
     
-  const int MAXCH = 4;
-
-  struct myEvent {
-    int trigId;
-    int channels;
-    int id[MAXCH];
-    float time_array[MAXCH][1024];
-    float wave_array[MAXCH][1024];
-  };
-    //readBin(argv[1],atoi(argv[2]));
-    char *fileName = argv[1];
-    int nEvents = atoi(argv[2]);
-    int delayNs = atoi(argv[4]);
-    float threshMV = atof(argv[5]);
-    bool triggerEdge;
-    if (strncmp(argv[6],"neg",3)==0) triggerEdge = true;
-    else if (strncmp(argv[6],"pos",3)==0) triggerEdge = false;
-    int triggerSource = atoi(argv[7]);
-
-    bool chanToPlot[128];
-    //TRint* rootapp = new TRint("example",&argc, argv);    //readBin(argv[1]);
-    //cout << "number of arguments is " << argc << endl;
-    if (argc==8) {
-        
-      for (int i=0; i<MAXCH; i++)
-	{
-	  chanToPlot[i]=false;
-        }
-	std::string input = argv[3];
-        std::istringstream myss(input);
-        std::string token;
-        
-        while(std::getline(myss, token, ',')) {
-            //std::cout << token << '\n';
-            int thechan = atoi(token.c_str());
-            chanToPlot[thechan] = true;
-            cout << "channel " << thechan << " will be recorded" << endl;
-        }
-
     }
+    
+    /*RICONTROLLARE*/
+    chanToPlot[par.channel] = true;
+    /*
+    std::string input = par.channel;
+    std::istringstream myss(input);
+    std::string token;
+        
+    while(std::getline(myss, token, ','))
+    {
+        
+        int thechan = atoi(token.c_str());
+        chanToPlot[thechan] = true;
+        cout << "channel " << thechan << " will be recorded" << endl;
+    }
+     */
 
-    //Scrittura file ROOT
-  struct myEvent ev;
+
+//Scrittura file ROOT
+ 
 
   TTree *tree = new TTree("t1", "title");
   
-  char branchDef[130];
+  
   TBranch * b_trigId = tree->Branch("trigId", &ev.trigId, "trigId/I");
   TBranch * b_channels   = tree->Branch("channels", &ev.channels, "channels/I");
   
@@ -134,18 +149,17 @@ int main(int argc, char* argv[]){
   sprintf(branchDef,"wave_array[%d][1024]/F",MAXCH);
   TBranch * b_wave_array   = tree->Branch("wave_array", &ev.wave_array[0][0], branchDef);
 
-  char rootFileName[130];
+  
   sprintf(rootFileName,"%s.root",fileName);
   TFile f1(rootFileName,"RECREATE");
   Int_t comp   = 0;
   f1.SetCompressionLevel(comp);
  
-   int i, j, nBoards;
-   DRS *drs;
-   DRSBoard *b;
+   
+ 
    //float time_array[8][1024];
    //float wave_array[8][1024];
-   FILE  *f;
+
 
    /* do initial scan */
    drs = new DRS();
@@ -214,14 +228,16 @@ int main(int argc, char* argv[]){
    // }
 
    /* open file to save waveforms */
-   f = fopen("data.txt", "w");
-   if (f == NULL) {
-      perror("ERROR: Cannot open file \"data.txt\"");
-      return 1;
+
+   if ((f=fopen("data.txt", "w+")) == NULL)
+   {
+       perror("ERROR: Cannot open file \"data.txt\"");
+       return 1;
    }
    
    /* repeat ten times */
-   for (j=0 ; j<nEvents ; j++) {
+   for (j=0 ; j<nEvents ; j++)
+   {
 
       /* start board (activate domino wave) */
       b->StartDomino();
@@ -239,33 +255,42 @@ int main(int argc, char* argv[]){
       /* read all waveforms */
       b->TransferWaves(0, 8);
 
-      int currentChannel = 0;
-      for (int ch=0; ch<MAXCH; ch++) {
-         if (chanToPlot[ch]==true) {
-            ev.id[currentChannel++] = ch;
+ 
+      for (ch=0; ch<MAXCH; ch++)
+      {
+         if (chanToPlot[ch]==true)
+         {
+             
+             ev.id[currentChannel++] = ch;
 
-            /* read time (X) array of first channel in ns */
-            b->GetTime(0, 2*ch, b->GetTriggerCell(0), ev.time_array[ch]);
+             /* read time (X) array of first channel in ns */
+             b->GetTime(0, 2*ch, b->GetTriggerCell(0), ev.time_array[ch]);
 
-            /* decode waveform (Y) array of first channel in mV */
-            b->GetWave(0, 2*ch, ev.wave_array[ch]);
+             /* decode waveform (Y) array of first channel in mV */
+             b->GetWave(0, 2*ch, ev.wave_array[ch]);
 
-            /* read time (X) array of second channel in ns
+             /* read time (X) array of second channel in ns
              Note: On the evaluation board input #1 is connected to channel 0 and 1 of
              the DRS chip, input #2 is connected to channel 2 and 3 and so on. So to
              get the input #2 we have to read DRS channel #2, not #1. */
 
-            /* decode waveform (Y) array of second channel in mV */
+             /* decode waveform (Y) array of second channel in mV */
           }
       }
       ev.channels = currentChannel;
       /* print some progress indication */
-      if((j%(nEvents/10))==0) cout << "Event #" << j << " read successfully" << endl;
-      tree->Fill();
-   }
+      
+      if((j%(nEvents/10))==0)
+      {
+          cout << "Event #" << j << " read successfully" << endl;
+      }
+      
+       tree->Fill();
+    }
 
    tree->Write();
    
    /* delete DRS object -> close USB connection */
    delete drs;
+   fclose(f);
 }

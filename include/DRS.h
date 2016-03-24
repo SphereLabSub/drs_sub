@@ -190,6 +190,35 @@ enum DRSErrorCodes {
    kZeroSuppression             = -4,
    kWaveNotAvailable            = -5
 };
+/*------Parameters and Pointer to file for configuration--*/
+#define     MAXCH                  4
+
+FILE fp;
+FILE f;
+
+/*-------Struct read from configuration file--------*/
+struct config_param
+{
+    int   nEvents;
+    char  *filename;
+    int   delayNs;
+    float treshMV;
+    bool  triggerEdge;
+    int   channel;
+    
+};
+/*-------Struct for storing Events-----*/
+struct myEvent
+{
+    int trigId;
+    int channels;
+    int id[MAXCH];
+    float time_array[MAXCH][1024];
+    float wave_array[MAXCH][1024];
+};
+/*------------------------*/
+
+/*------------------------*/
 
 /*---- callback class ----*/
 
@@ -946,5 +975,6 @@ public:
    MVME_INTERFACE *GetVMEInterface() const { return fVmeInterface; };
 #endif
 };
+
 
 #endif                          // DRS_H
