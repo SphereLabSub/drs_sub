@@ -205,6 +205,7 @@ struct config_param
     float treshMV;
     bool  triggerEdge;
     int   channel;
+    int   trigger_source;
     
 };
 /*-------Struct for storing Events-----*/
@@ -217,6 +218,21 @@ struct myEvent
     float wave_array[MAXCH][1024];
 };
 /*------------------------*/
+
+/*-------Struct for interface-----------*/
+
+struct interface
+{
+
+    int start;
+    int quit;
+    int time;
+    int trigger_frequency;
+    
+
+};
+
+/*--------------------------------------*/
 
 /*------------------------*/
 

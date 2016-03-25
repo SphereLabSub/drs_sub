@@ -63,7 +63,7 @@ using namespace std;
 int main()
 {
     
-    config_param par;
+    struct config_param par;
     
     bool chanToPlot[128];
     
@@ -72,11 +72,15 @@ int main()
     int i;
     int j;
     int nBoards;
+    int nmeasure = 0;
+    
     
     struct myEvent ev;
+    struct interface interfaccia = {0};
     
     char branchDef[130];
     char rootFileName[130];
+    char command[10];
     
     DRS *drs;
     DRSBoard *b;
@@ -87,100 +91,86 @@ int main()
         perror("ERROR: Cannot open file \"config.txt\"");
         return 1;
     }
-
-    fscanf(fp,"%d %s %d %f %B %d",&(par.nEvents), par.filename, &(par.delayNs), &(par.treshMV), &(par.triggerEdge), &(par.channel));
-    //cout << "no. of arguments: " << argc << endl;
-   /* if (argc !=8) {
-        cout << argv[0] << ": Usage"<< endl;
-        cout << argv[0] << " filename nchans" << endl;
-        cout << "          nEvents  : Number of events Read Out " << endl;
-        cout << "          [chlist] : Optional, list of Channels to be plotted. Example 0,1,3" << endl;
-        cout << "          delay    : Trigger delay in ns" << endl;
-        cout << "          thresh   : Threshold in mV" << endl;
-        cout << "          edge     : Threshold edge [pos=rising edge, neg=falling edge]" << endl;
-        cout << "          source   : trigger source [0=ch1, 1=ch2, 2=ch3, 3=ch4, 4=ext]" << endl;
-        cout << " Example: drs_sub pippo 1000 0 100 25.0 pos 0" << endl;
-        return 0;
-    }
-    */
+    /*Trigger edge true it's negative edge, false it's positive*/
+    fscanf(fp,"%d %s %d %f %B %d %d",&(par.nEvents), par.filename, &(par.delayNs), &(par.treshMV), &(par.triggerEdge), &(par.channel),&(par.trigger_source));
+    
     fclose(fp);
+    
 
-    /*Tutto sto bordello per scegliere una canale da seguire. Mette nell'array di booleani chanToPlot quello che si stà usando a TRUE, gli altri tutti FALSE */
-    /*BISOGNA RIVEDERE LA PERVERSIONE QUI IN ATTO*/
 
     for (i=0; i<MAXCH; i++)
     {
-    chanToPlot[i]=false;
+        chanToPlot[i]=false;
     
     }
-    
-    /*RICONTROLLARE*/
+
     chanToPlot[par.channel] = true;
-    /*
-    std::string input = par.channel;
-    std::istringstream myss(input);
-    std::string token;
-        
-    while(std::getline(myss, token, ','))
-    {
-        
-        int thechan = atoi(token.c_str());
-        chanToPlot[thechan] = true;
-        cout << "channel " << thechan << " will be recorded" << endl;
-    }
-     */
 
-
-//Scrittura file ROOT
- 
-
-  TTree *tree = new TTree("t1", "title");
-  
-  
-  TBranch * b_trigId = tree->Branch("trigId", &ev.trigId, "trigId/I");
-  TBranch * b_channels   = tree->Branch("channels", &ev.channels, "channels/I");
-  
-  sprintf(branchDef,"id[%d]/I",MAXCH);
-  TBranch * b_id   = tree->Branch("id", ev.id, branchDef);
-
-  sprintf(branchDef,"time_array[%d][1024]/F",MAXCH);
-  TBranch * b_time_array   = tree->Branch("time_array", &ev.time_array[0][0], branchDef);
-
-  sprintf(branchDef,"wave_array[%d][1024]/F",MAXCH);
-  TBranch * b_wave_array   = tree->Branch("wave_array", &ev.wave_array[0][0], branchDef);
-
-  
-  sprintf(rootFileName,"%s.root",fileName);
-  TFile f1(rootFileName,"RECREATE");
-  Int_t comp   = 0;
-  f1.SetCompressionLevel(comp);
- 
-   
- 
-   //float time_array[8][1024];
-   //float wave_array[8][1024];
-
-
-   /* do initial scan */
+   while(!(interface.quit))
+   {
+       cout << "Put a command between start, quit" << endl;
+       scanf("%s",command);
+       switch(command)
+       {
+           case start:
+               interface.start = 1;
+               interface.quit  = 0;
+               break;
+           
+           case quit :
+               interface.quit = 1;
+               interface.start = 0;
+               break;
+   }
+   if((interface.start) == 1)
+   {
+       nmeasure ++;
+       
+       TTree *tree = new TTree("t1", "title");
+       
+       
+       TBranch * b_trigId = tree->Branch("trigId", &ev.trigId, "trigId/I");
+       TBranch * b_channels   = tree->Branch("channels", &ev.channels, "channels/I");
+       
+       sprintf(branchDef,"id[%d]/I",MAXCH);
+       TBranch * b_id   = tree->Branch("id", ev.id, branchDef);
+       
+       sprintf(branchDef,"time_array[%d][1024]/F",MAXCH);
+       TBranch * b_time_array   = tree->Branch("time_array", &ev.time_array[0][0], branchDef);
+       
+       sprintf(branchDef,"wave_array[%d][1024]/F",MAXCH);
+       TBranch * b_wave_array   = tree->Branch("wave_array", &ev.wave_array[0][0], branchDef);
+       
+       
+       sprintf(rootFileName,"%s_%d.root",nmeasure,par.filename);
+       TFile f1(rootFileName,"RECREATE");
+       Int_t comp   = 0;
+       f1.SetCompressionLevel(comp);
+       
+       
+       
+    /* do initial scan */
    drs = new DRS();
 
    /* show any found board(s) */
-   for (i=0 ; i<drs->GetNumberOfBoards() ; i++) {
-      b = drs->GetBoard(i);
-      printf("Found DRS4 evaluation board, serial #%d, firmware revision %d\n", 
-         b->GetBoardSerialNumber(), b->GetFirmwareVersion());
+   for (i=0 ; i<drs->GetNumberOfBoards() ; i++)
+   {
+       b = drs->GetBoard(i);
+       cout << "Found DRS4 evaluation board, serial #%d, firmware revision" << endl;
+       b->GetBoardSerialNumber(), b->GetFirmwareVersion());
    }
 
    /* exit if no board found */
    nBoards = drs->GetNumberOfBoards();
-   if (nBoards == 0) {
-      printf("No DRS4 evaluation board found\n");
-      return 0;
+   if (nBoards == 0)
+   {
+       cout << "No DRS4 evaluation board found " << endl;
+       return 0;
    }
 
    /* continue working with first board only */
    b = drs->GetBoard(0);
-
+    
    /* initialize board */
    b->Init();
 
@@ -200,15 +190,18 @@ int main()
    //b->EnableTcal(1);
 
    /* use following lines to enable hardware trigger on CH1 at 50 mV positive edge */
-   if (b->GetBoardType() >= 8) {        // Evaluaiton Board V4&5
+   if (b->GetBoardType() >= 8)
+   {        // Evaluaiton Board V4&5
       b->EnableTrigger(1, 0);           // enable hardware trigger
       b->SetTriggerSource(1<<triggerSource);        // set input trigger source
-   } else if (b->GetBoardType() == 7) { // Evaluation Board V3
+   }
+   else if (b->GetBoardType() == 7)
+   { // Evaluation Board V3
       b->EnableTrigger(0, 1);           // lemo off, analog trigger on
       b->SetTriggerSource(0);           // use CH1 as source
    }
-   b->SetTriggerLevel(threshMV/1000.);            // threshold is in V
-   b->SetTriggerPolarity(triggerEdge);        // positive edge
+   b->SetTriggerLevel(par.threshMV/1000.);            // threshold is in V
+   b->SetTriggerPolarity(par.triggerEdge);        // positive edge
    
    /* use following lines to set individual trigger elvels */
    //b->SetIndividualTriggerLevel(1, 0.1);
@@ -217,7 +210,7 @@ int main()
    //b->SetIndividualTriggerLevel(4, 0.4);
    //b->SetTriggerSource(15);
    
-   b->SetTriggerDelayNs(delayNs);             // ns trigger delay
+   b->SetTriggerDelayNs(par.delayNs);             // ns trigger delay
    
    /* use following lines to enable the external trigger */
    //if (b->GetBoardType() == 8) {     // Evaluaiton Board V4
@@ -235,21 +228,24 @@ int main()
        return 1;
    }
    
-   /* repeat ten times */
-   for (j=0 ; j<nEvents ; j++)
+   /* repeat nEvents times */
+   for (j=0 ; j<(par.nEvents) ; j++)
    {
-
       /* start board (activate domino wave) */
       b->StartDomino();
 
       /* wait for trigger */
-      if(j==0) cout << "Waiting for trigger..." << endl;
-      
+       if(j==0)
+       {
+           cout << "Waiting for trigger..." << endl;
+       }
       //fflush(stdout);
       while (b->IsBusy());
 
-      if(j==0) cout << "Trigger found, reading data..." << endl;
-
+      if(j==0)
+      {
+          cout << "Trigger found, reading data..." << endl;
+      }
       ev.trigId = j;
 
       /* read all waveforms */
@@ -277,10 +273,11 @@ int main()
              /* decode waveform (Y) array of second channel in mV */
           }
       }
+       
       ev.channels = currentChannel;
       /* print some progress indication */
       
-      if((j%(nEvents/10))==0)
+      if((j%(par.nEvents/10))==0)
       {
           cout << "Event #" << j << " read successfully" << endl;
       }
@@ -290,7 +287,13 @@ int main()
 
    tree->Write();
    
+    
    /* delete DRS object -> close USB connection */
    delete drs;
    fclose(f);
+       
+    }
+   }
+    cout << "Closing interface" << endl;
+  }
 }
